@@ -22,27 +22,29 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function load() {
-      const promises: Promise<any>[] = [
-        supabase.from('books').select('*', { count: 'exact', head: true }),
-        supabase.from('books').select('*').order('created_at', { ascending: false }).limit(5),
-      ];
-
       const uid = user!.id;
-      if (isStaff()) {
-        promises.push(
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'issued').then(),
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'returned').then(),
-          supabase.from('book_issues').select('fine_amount').then(),
-          supabase.from('book_issues').select('*, books(title, author)').order('created_at', { ascending: false }).limit(8).then(),
-        );
+      const staff = isStaff();
+
+      const booksRes = await supabase.from('books').select('*', { count: 'exact', head: true });
+      const recent = await supabase.from('books').select('*').order('created_at', { ascending: false }).limit(5);
+
+      let issuedQuery = supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'issued');
+      let returnedQuery = supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'returned');
+      let finesQuery = supabase.from('book_issues').select('fine_amount');
+      let activityQuery = supabase.from('book_issues').select('*, books(title, author)').order('created_at', { ascending: false });
+
+      if (!staff) {
+        issuedQuery = issuedQuery.eq('user_id', uid);
+        returnedQuery = returnedQuery.eq('user_id', uid);
+        finesQuery = finesQuery.eq('user_id', uid);
+        activityQuery = activityQuery.eq('user_id', uid).limit(5);
       } else {
-        promises.push(
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'issued').eq('user_id', uid).then(),
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'returned').eq('user_id', uid).then(),
-          supabase.from('book_issues').select('fine_amount').eq('user_id', uid).then(),
-          supabase.from('book_issues').select('*, books(title, author)').eq('user_id', uid).order('created_at', { ascending: false }).limit(5).then(),
-        );
+        activityQuery = activityQuery.limit(8);
       }
+
+      const [issuedRes, returnedRes, finesRes, activityRes] = await Promise.all([
+        issuedQuery, returnedQuery, finesQuery, activityQuery,
+      ]);
 
       const [booksRes, recent, issuedRes, returnedRes, finesRes, activityRes] = await Promise.all(promises);
 
