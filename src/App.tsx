@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { AppLayout } from '@/components/layout/AppLayout';
+import HomePage from '@/pages/HomePage';
 import Dashboard from '@/pages/Dashboard';
 import Books from '@/pages/Books';
 import Transactions from '@/pages/Transactions';
@@ -22,6 +23,7 @@ const queryClient = new QueryClient();
 function AuthGate() {
   const { user, loading, setUser, fetchProfile, fetchRoles } = useAuthStore();
   const [initializing, setInitializing] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -53,7 +55,12 @@ function AuthGate() {
     );
   }
 
-  if (!user) return <AuthPage />;
+  if (!user) {
+    if (!showLogin) {
+      return <HomePage onNavigateToLogin={() => setShowLogin(true)} />;
+    }
+    return <AuthPage onBack={() => setShowLogin(false)} />;
+  }
 
   return (
     <Routes>
