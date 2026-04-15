@@ -27,21 +27,20 @@ export default function Dashboard() {
         supabase.from('books').select('*').order('created_at', { ascending: false }).limit(5),
       ];
 
+      const uid = user!.id;
       if (isStaff()) {
-        // Staff sees all issues
         promises.push(
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'issued'),
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'returned'),
-          supabase.from('book_issues').select('fine_amount'),
-          supabase.from('book_issues').select('*, books(title, author)').order('created_at', { ascending: false }).limit(8),
+          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'issued').then(),
+          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'returned').then(),
+          supabase.from('book_issues').select('fine_amount').then(),
+          supabase.from('book_issues').select('*, books(title, author)').order('created_at', { ascending: false }).limit(8).then(),
         );
       } else {
-        // Students/faculty see own issues
         promises.push(
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'issued').eq('user_id', user!.id),
-          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'returned').eq('user_id', user!.id),
-          supabase.from('book_issues').select('fine_amount').eq('user_id', user!.id),
-          supabase.from('book_issues').select('*, books(title, author)').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(5),
+          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'issued').eq('user_id', uid).then(),
+          supabase.from('book_issues').select('*', { count: 'exact', head: true }).eq('status', 'returned').eq('user_id', uid).then(),
+          supabase.from('book_issues').select('fine_amount').eq('user_id', uid).then(),
+          supabase.from('book_issues').select('*, books(title, author)').eq('user_id', uid).order('created_at', { ascending: false }).limit(5).then(),
         );
       }
 
