@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, BookOpen, Filter } from 'lucide-react';
+import { Search, Plus, BookOpen, Filter, Edit, Trash2, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { Input } from '@/components/ui/input';
@@ -10,20 +10,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import type { Database } from '@/integrations/supabase/types';
 
 type Book = Database['public']['Tables']['books']['Row'];
 
-const CATEGORIES = ['General', 'Programming', 'Data Structures', 'Algorithms', 'Networking', 'Database', 'AI/ML', 'Operating Systems', 'Web Development', 'Cybersecurity'];
+const CATEGORIES = ['General', 'Programming', 'Data Structures', 'Algorithms', 'Networking', 'Databases', 'Artificial Intelligence', 'Operating Systems', 'Software Engineering', 'Computer Architecture', 'Compilers'];
 
 export default function Books() {
-  const { isStaff } = useAuthStore();
+  const { isStaff, hasRole } = useAuthStore();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', author: '', isbn: '', category: 'General', total_copies: 1, publisher: '', shelf_location: '', description: '' });
+  const [editBook, setEditBook] = useState<Book | null>(null);
+  const [viewBook, setViewBook] = useState<Book | null>(null);
+  const [form, setForm] = useState({ title: '', author: '', isbn: '', category: 'General', total_copies: 1, publisher: '', shelf_location: '', description: '', edition: '', published_year: '' });
 
   const fetchBooks = async () => {
     let query = supabase.from('books').select('*').order('title');
@@ -38,16 +41,54 @@ export default function Books() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('books').insert({
-      ...form,
+    const payload = {
+      title: form.title,
+      author: form.author,
+      isbn: form.isbn || null,
+      category: form.category,
+      total_copies: form.total_copies,
       available_copies: form.total_copies,
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success('Book added!');
+      publisher: form.publisher || null,
+      shelf_location: form.shelf_location || null,
+      description: form.description || null,
+      edition: form.edition || null,
+      published_year: form.published_year ? parseInt(form.published_year) : null,
+    };
+
+    if (editBook) {
+      const { error } = await supabase.from('books').update(payload).eq('id', editBook.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Book updated!');
+    } else {
+      const { error } = await supabase.from('books').insert(payload);
+      if (error) { toast.error(error.message); return; }
+      toast.success('Book added!');
+    }
     setDialogOpen(false);
-    setForm({ title: '', author: '', isbn: '', category: 'General', total_copies: 1, publisher: '', shelf_location: '', description: '' });
+    setEditBook(null);
+    resetForm();
     fetchBooks();
   };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this book?')) return;
+    const { error } = await supabase.from('books').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Book deleted');
+    fetchBooks();
+  };
+
+  const openEdit = (book: Book) => {
+    setEditBook(book);
+    setForm({
+      title: book.title, author: book.author, isbn: book.isbn || '', category: book.category,
+      total_copies: book.total_copies, publisher: book.publisher || '', shelf_location: book.shelf_location || '',
+      description: book.description || '', edition: book.edition || '', published_year: book.published_year?.toString() || '',
+    });
+    setDialogOpen(true);
+  };
+
+  const resetForm = () => setForm({ title: '', author: '', isbn: '', category: 'General', total_copies: 1, publisher: '', shelf_location: '', description: '', edition: '', published_year: '' });
 
   return (
     <div className="space-y-6">
@@ -58,13 +99,13 @@ export default function Books() {
         </motion.div>
 
         {isStaff() && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) { setEditBook(null); resetForm(); } }}>
             <DialogTrigger asChild>
               <Button><Plus className="mr-2 w-4 h-4" />Add Book</Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add New Book</DialogTitle>
+                <DialogTitle>{editBook ? 'Edit Book' : 'Add New Book'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAdd} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -84,9 +125,7 @@ export default function Books() {
                     <Label>Category</Label>
                     <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
+                      <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
@@ -98,11 +137,23 @@ export default function Books() {
                     <Input value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
                   </div>
                   <div className="space-y-2">
+                    <Label>Edition</Label>
+                    <Input value={form.edition} onChange={(e) => setForm({ ...form, edition: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    <Input type="number" value={form.published_year} onChange={(e) => setForm({ ...form, published_year: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Shelf Location</Label>
                     <Input value={form.shelf_location} onChange={(e) => setForm({ ...form, shelf_location: e.target.value })} />
                   </div>
+                  <div className="col-span-2 space-y-2">
+                    <Label>Description</Label>
+                    <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                  </div>
                 </div>
-                <Button type="submit" className="w-full">Add Book</Button>
+                <Button type="submit" className="w-full">{editBook ? 'Update Book' : 'Add Book'}</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -127,7 +178,7 @@ export default function Books() {
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-44 rounded-xl" />)}
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
         </div>
       ) : books.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-12 text-center">
@@ -139,11 +190,8 @@ export default function Books() {
           <AnimatePresence>
             {books.map((book, i) => (
               <motion.div
-                key={book.id}
-                layout
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                key={book.id} layout
+                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: i * 0.03 }}
                 className="glass-card-hover p-5 flex flex-col"
               >
@@ -157,15 +205,58 @@ export default function Books() {
                 </div>
                 <h3 className="font-semibold text-sm line-clamp-2">{book.title}</h3>
                 <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
+                {book.edition && <p className="text-xs text-muted-foreground">{book.edition} Edition · {book.published_year}</p>}
                 <div className="mt-auto pt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="bg-muted px-2 py-0.5 rounded">{book.category}</span>
+                  <Badge variant="secondary" className="text-xs">{book.category}</Badge>
                   <span>{book.available_copies}/{book.total_copies} copies</span>
+                </div>
+                {book.shelf_location && <p className="text-xs text-muted-foreground mt-1">📍 {book.shelf_location}</p>}
+
+                {/* Role-based actions */}
+                <div className="flex gap-2 mt-3 pt-3 border-t border-border/50">
+                  <Button size="sm" variant="ghost" className="flex-1 h-7 text-xs" onClick={() => setViewBook(book)}>
+                    <Eye className="w-3 h-3 mr-1" /> Details
+                  </Button>
+                  {isStaff() && (
+                    <>
+                      <Button size="sm" variant="ghost" className="flex-1 h-7 text-xs" onClick={() => openEdit(book)}>
+                        <Edit className="w-3 h-3 mr-1" /> Edit
+                      </Button>
+                      {hasRole('admin') && (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDelete(book.id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
       )}
+
+      {/* View Details Dialog */}
+      <Dialog open={!!viewBook} onOpenChange={(v) => !v && setViewBook(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{viewBook?.title}</DialogTitle></DialogHeader>
+          {viewBook && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-muted-foreground">Author:</span> <span className="font-medium">{viewBook.author}</span></div>
+                <div><span className="text-muted-foreground">ISBN:</span> <span className="font-medium">{viewBook.isbn || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Publisher:</span> <span className="font-medium">{viewBook.publisher || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Edition:</span> <span className="font-medium">{viewBook.edition || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Year:</span> <span className="font-medium">{viewBook.published_year || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Category:</span> <Badge variant="secondary">{viewBook.category}</Badge></div>
+                <div><span className="text-muted-foreground">Shelf:</span> <span className="font-medium">{viewBook.shelf_location || 'N/A'}</span></div>
+                <div><span className="text-muted-foreground">Copies:</span> <span className="font-medium">{viewBook.available_copies}/{viewBook.total_copies}</span></div>
+              </div>
+              {viewBook.description && <p className="text-muted-foreground">{viewBook.description}</p>}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

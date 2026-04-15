@@ -1,4 +1,4 @@
-import { BookOpen, LayoutDashboard, Library, ArrowLeftRight, Bell, BarChart3, Users, LogOut, Settings } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Library, ArrowLeftRight, Bell, BarChart3, Users, LogOut, Settings, Shield, GraduationCap, BookMarked } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -16,7 +17,11 @@ const mainItems = [
   { title: 'Notifications', url: '/notifications', icon: Bell },
 ];
 
-const staffItems = [
+const librarianItems = [
+  { title: 'Reports', url: '/reports', icon: BarChart3 },
+];
+
+const adminItems = [
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'Users', url: '/users', icon: Users },
   { title: 'Settings', url: '/settings', icon: Settings },
@@ -26,9 +31,30 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
-  const { profile, signOut, isStaff } = useAuthStore();
+  const { profile, roles, signOut, isStaff, hasRole } = useAuthStore();
 
+  const primaryRole = roles[0] || 'student';
   const isActive = (path: string) => location.pathname === path;
+
+  const managementItems = hasRole('admin') ? adminItems : hasRole('librarian') ? librarianItems : [];
+
+  const roleIcon = () => {
+    switch (primaryRole) {
+      case 'admin': return <Shield className="w-3 h-3" />;
+      case 'librarian': return <BookMarked className="w-3 h-3" />;
+      case 'faculty': return <Users className="w-3 h-3" />;
+      default: return <GraduationCap className="w-3 h-3" />;
+    }
+  };
+
+  const roleColor = () => {
+    switch (primaryRole) {
+      case 'admin': return 'bg-rose-500/10 text-rose-500';
+      case 'librarian': return 'bg-amber-500/10 text-amber-500';
+      case 'faculty': return 'bg-emerald-500/10 text-emerald-500';
+      default: return 'bg-blue-500/10 text-blue-500';
+    }
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -56,12 +82,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isStaff() && (
+        {managementItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>{!collapsed && 'Management'}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {staffItems.map((item) => (
+                {managementItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive(item.url)}>
                       <NavLink to={item.url} end className="hover:bg-muted/50" activeClassName="bg-primary/10 text-primary font-medium">
@@ -87,7 +113,9 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{profile?.full_name || 'User'}</p>
-              <p className="text-xs text-muted-foreground truncate">{profile?.department}</p>
+              <Badge className={`${roleColor()} border-0 text-[10px] px-1.5 py-0 capitalize gap-1`}>
+                {roleIcon()} {primaryRole}
+              </Badge>
             </div>
           )}
           <Button variant="ghost" size="icon" onClick={signOut} className="shrink-0" aria-label="Sign out">
