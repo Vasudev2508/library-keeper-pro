@@ -16,10 +16,10 @@ export default function HomePage({ onNavigateToLogin }: HomePageProps) {
         loop
         playsInline
         className="absolute inset-0 w-full h-full object-cover"
-        poster="https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920&q=80"
+        //poster="https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1920&q=80"
       >
         <source
-          src="https://videos.pexels.com/video-files/5676400/5676400-uhd_2560_1440_30fps.mp4"
+          src="https://vasudev2508.github.io/Library_video/VEMU_Institute_of_Technology.mp4"
           type="video/mp4"
         />
       </video>
@@ -75,12 +75,12 @@ export default function HomePage({ onNavigateToLogin }: HomePageProps) {
             <div className="flex items-center justify-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-amber-400" />
               <span className="text-xs font-medium text-amber-300 uppercase tracking-widest">
-                Department of CSE
+                VEMU INSTITUTE OF TECHNOLOGY 
               </span>
               <Sparkles className="w-4 h-4 text-amber-400" />
             </div>
             <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-3 leading-tight">
-              CSE Library
+              CSE Department
             </h1>
             <p className="text-lg text-white/70 font-body mb-2">
               Digital Library Management System

@@ -59,7 +59,7 @@ export function AuthPage({ onBack }: AuthPageProps) {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=1920&q=80')`,
+          backgroundImage: `url('https://vemu.org/vm-uploads/banners/vemu1.jpg')`,
         }}
       />
       {/* Dark overlay with gradient */}
