@@ -46,7 +46,7 @@ export default function Dashboard() {
         issuedQuery, returnedQuery, finesQuery, activityQuery,
       ]);
 
-      const [booksRes, recent, issuedRes, returnedRes, finesRes, activityRes] = await Promise.all(promises);
+      // results already destructured above
 
       const totalFines = (finesRes.data || []).reduce((sum: number, i: any) => sum + (i.fine_amount || 0), 0);
       const overdueCount = (activityRes.data || []).filter((i: any) => i.status === 'issued' && new Date(i.due_date) < new Date()).length;
